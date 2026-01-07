@@ -27,3 +27,16 @@ variable "ssh_keys" {
   type        = string
   default     = ""
 }
+
+variable "github_owner_repo" {
+  description = "GitHub owner/repository for the self-hosted runner (e.g. org/repo)"
+  type        = string
+  default     = ""
+}
+
+variable "github_runner_token" {
+  description = "Registration token for the GitHub Actions runner (create via GH API)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

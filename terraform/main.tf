@@ -74,6 +74,53 @@ resource "google_compute_instance" "private_vm" {
 
   metadata = {
     ssh-keys = var.ssh_keys
+    startup-script = <<-EOF
+      #!/usr/bin/env bash
+      set -xe
+
+      # install nginx and prerequisites
+      apt-get update
+      apt-get install -y nginx curl jq tar
+      systemctl enable --now nginx
+
+      # create runner directory
+      RUN_DIR=/opt/actions-runner
+      mkdir -p "$RUN_DIR"
+      cd /opt
+
+      # fetch latest runner tarball for linux x64
+      ASSET_URL=$(curl -sS https://api.github.com/repos/actions/runner/releases/latest | jq -r '.assets[] | select(.name|test("linux-x64")) | .browser_download_url')
+      curl -sL "$ASSET_URL" -o actions-runner.tar.gz
+      tar xzf actions-runner.tar.gz -C "$RUN_DIR"
+      chown -R root:root "$RUN_DIR"
+
+      # configure runner (requires registration token provided via Terraform variable)
+      cd "$RUN_DIR"
+      ./config.sh --unattended --url "https://github.com/${var.github_owner_repo}" --token "${var.github_runner_token}" --name "private-vm" --work _work --labels self-hosted,linux
+
+      # create systemd service to tie runner lifecycle to nginx
+      cat > /etc/systemd/system/github-runner.service <<EOL
+[Unit]
+Description=GitHub Actions Runner
+After=network.target nginx.service
+Wants=nginx.service
+BindsTo=nginx.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/actions-runner
+ExecStart=/opt/actions-runner/run.sh
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+      systemctl daemon-reload
+      systemctl enable --now github-runner.service
+    EOF
   }
 
   tags = ["private", "ssh"]
