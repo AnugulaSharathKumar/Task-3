@@ -21,8 +21,8 @@ jobs:
         id: create_token
         uses: actions/github-script@v6
         with:
-          # Provide a PAT with repository administration permissions in secrets.RUNNER_PAT
-          github-token: ${{ secrets.RUNNER_PAT }}
+          # Use RUNNER_PAT if provided, otherwise fall back to GITHUB_TOKEN
+          github-token: ${{ secrets.RUNNER_PAT != '' && secrets.RUNNER_PAT || github.token }}
           script: |
             try {
               const res = await github.rest.actions.createRegistrationTokenForRepo({
