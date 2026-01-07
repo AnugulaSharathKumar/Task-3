@@ -10,7 +10,6 @@ jobs:
     runs-on: self-hosted
     permissions:
       actions: write
-      administration: write
       id-token: write
       contents: read
 
