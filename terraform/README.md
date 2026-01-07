@@ -4,7 +4,7 @@ This Terraform configuration creates:
 - A firewall rule allowing internal traffic within the subnet
 - A firewall rule allowing SSH (port 22) to instances tagged `ssh`
 - A VM `private-vm` in zone `asia-south1-a` running Ubuntu 22.04 with an external IP for SSH access
-Quick start:
+Quick start::
 1. Install Terraform 1.0+
 2. Authenticate: `gcloud auth application-default login` or set service account credentials
 3. From this folder run:
