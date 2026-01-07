@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Runs terraform commands from this directory with sensible defaults.
+# Usage: ./all [init|plan|apply|destroy|validate] [extra terraform args]
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT_DIR"
+
+PROJECT_ID="${TF_VAR_project_id:-project-3e800f45-77e7-454a-a2b}"
+
+extra_args=()
+if [ "$#" -gt 0 ]; then
+  cmd="$1"
+  shift || true
+  extra_args=("$@")
+else
+  cmd="apply"
+fi
+
+export TF_VAR_project_id="$PROJECT_ID"
+
+case "$cmd" in
+  init)
+    terraform init
+    ;;
+  plan)
+    terraform init -input=false
+    terraform plan -var "project_id=${PROJECT_ID}" "${extra_args[@]}"
+    ;;
+  apply)
+    terraform init -input=false
+    terraform apply -auto-approve -var "project_id=${PROJECT_ID}" "${extra_args[@]}"
+    ;;
+  destroy)
+    terraform init -input=false
+    terraform destroy -auto-approve -var "project_id=${PROJECT_ID}" "${extra_args[@]}"
+    ;;
+  validate)
+    terraform init -input=false
+    terraform validate
+    ;;
+  -h|--help|help)
+    echo "Usage: $0 [init|plan|apply|destroy|validate] [extra terraform args]"
+    exit 0
+    ;;
+  *)
+    echo "Unknown command: $cmd"
+    echo "Usage: $0 [init|plan|apply|destroy|validate] [extra terraform args]"
+    exit 2
+    ;;
+esac
