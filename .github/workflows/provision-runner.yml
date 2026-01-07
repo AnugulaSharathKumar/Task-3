@@ -10,6 +10,7 @@ jobs:
     runs-on: self-hosted
     permissions:
       actions: write
+      administration: write
       id-token: write
       contents: read
 
@@ -21,12 +22,18 @@ jobs:
         id: create_token
         uses: actions/github-script@v6
         with:
+          # Provide a PAT with repository administration permissions in secrets.RUNNER_PAT
+          github-token: ${{ secrets.RUNNER_PAT }}
           script: |
-            const res = await github.rest.actions.createRegistrationTokenForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-            core.setOutput('runner_token', res.data.token);
+            try {
+              const res = await github.rest.actions.createRegistrationTokenForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              core.setOutput('runner_token', res.data.token);
+            } catch (err) {
+              core.setFailed(`Failed to create registration token: ${err.message}.\nEnsure this workflow has 'permissions: administration: write' or provide a PAT in secrets.RUNNER_PAT with repo/administration privileges.`);
+            }
 
       - name: Mask runner token
         run: echo "::add-mask::${{ steps.create_token.outputs.runner_token }}"
