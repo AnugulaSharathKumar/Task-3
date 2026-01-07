@@ -1,0 +1,56 @@
+name: Provision self-hosted runner
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  provision:
+    runs-on: private-vm
+    permissions:
+      actions: write
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Create registration token for repository
+        id: create_token
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const res = await github.rest.actions.createRegistrationTokenForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            core.setOutput('runner_token', res.data.token);
+
+      - name: Mask runner token
+        run: echo "::add-mask::${{ steps.create_token.outputs.runner_token }}"
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.5.0'
+
+      - name: Initialize Terraform
+        working-directory: terraform
+        run: terraform init
+
+      - name: Apply Terraform (provision VM & runner startup)
+        working-directory: terraform
+        env:
+          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          terraform apply -auto-approve \
+            -var "github_owner_repo=${{ github.repository }}" \
+            -var "github_runner_token=${{ steps.create_token.outputs.runner_token }}"
